@@ -64,9 +64,7 @@ impl<'a> ExecTracker<Elements> for Tracker<'a> {
 
     fn track_dbg_call(&mut self, cmr: &Cmr, value: simplicity::Value) {
         if let Some(tracked_call) = self.debug_symbols.get(cmr) {
-            match tracked_call.map_value(
-                &StructuralValue::from(value),
-            ) {
+            match tracked_call.map_value(&StructuralValue::from(value)) {
                 Some(Either::Right(debug_value)) => {
                     println!(
                         "\x1b[1;33mDBG: {} = {}\x1b[0m",
