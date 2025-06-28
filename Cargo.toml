@@ -7,9 +7,13 @@ edition = "2021"
 name = "simply"
 path = "src/main.rs"
 
+[[test]]
+name = "integration-tests"
+path = "tests/integration_tests.rs"
+
 [dependencies]
-simfony = { git = "https://github.com/m-kus/simfony", rev = "74b94b4414d6d29ad254026168b4ee2c50cbde40", features = ["serde"] }
-simplicity-lang = { git = "https://github.com/m-kus/rust-simplicity", rev = "7c43d07c12a47906fb1de6af35f8d0f2c2f93127", features = ["test-utils", "debug"] }
+simfony = { git = "https://github.com/m-kus/simfony", rev = "4cfde3af4bee376403cebd9b9acefff7ec21fbff", features = ["serde"] }
+simplicity-lang = { git = "https://github.com/m-kus/rust-simplicity", rev = "9256c8433125145d643afd50e00a6670738ee749", features = ["test-utils"] }
 itertools = "0.11"
 anyhow = "1.0"
 clap = { version = "4.4", features = ["derive"] }

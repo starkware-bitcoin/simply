@@ -21,10 +21,13 @@ pub struct Tracker<'a> {
 
 #[derive(Debug)]
 pub enum TrackerError {
+    #[allow(dead_code)]
     UnexpectedAlias(AliasName),
     EndOfBitStream,
+    #[allow(dead_code)]
     UnexpectedEndOfBitStream(BitIterCloseError),
     ReconstructError,
+    #[allow(dead_code)]
     UnexpectedValue(SimValue),
 }
 
@@ -75,6 +78,10 @@ impl<'a> ExecTracker<Elements> for Tracker<'a> {
                 _ => {}
             }
         }
+    }
+
+    fn is_track_debug_enabled(&self) -> bool {
+        true
     }
 }
 

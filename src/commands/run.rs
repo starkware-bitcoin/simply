@@ -73,8 +73,15 @@ pub fn handle_run(args: RunArgs) -> Result<()> {
         .len();
     println!("Padding size: {}", padding_size);
 
-    let _ = run_program(&program_bytes, &witness_bytes, TestUpTo::Everything)
-        .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
+    let env = dummy_env::dummy();
+    run_program(
+        &program_bytes,
+        &witness_bytes,
+        TestUpTo::Everything,
+        None,
+        Some(env.c_tx_env()),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
 
     Ok(())
 }
