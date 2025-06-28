@@ -16,14 +16,14 @@ impl SimfTestRunner {
     }
 
     /// Build a simf file
-    pub fn build(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<Vec<u8>> {
+    pub fn build(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<()> {
         let mut cmd = Command::new("cargo");
         cmd.arg("run")
             .arg("--")
             .arg("build")
             .arg(source_path)
-            .arg("--output-format")
-            .arg("hex");
+            .arg("--program-name")
+            .arg(&self.program_name);
 
         if let Some(witness_path) = witness_path {
             cmd.arg("--witness").arg(witness_path);
@@ -42,18 +42,12 @@ impl SimfTestRunner {
             anyhow::bail!("Build failed for {}: {}", self.program_name, stderr);
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let hex_output = stdout
-            .lines()
-            .find(|line| line.starts_with("Program:"))
-            .ok_or_else(|| anyhow::anyhow!("No program output found in build result"))?
-            .trim_start_matches("Program:")
-            .trim();
+        let output_path = PathBuf::from("target").join(format!("{}.bin", self.program_name));
+        if !output_path.exists() {
+            anyhow::bail!("Build output file not found: {}", output_path.display());
+        }
 
-        let program_bytes =
-            hex::decode(hex_output).with_context(|| "Failed to decode hex program output")?;
-
-        Ok(program_bytes)
+        Ok(())
     }
 
     /// Run a simf file
