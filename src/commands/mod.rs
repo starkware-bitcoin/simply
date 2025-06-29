@@ -1,10 +1,13 @@
 use clap::{Parser, Subcommand};
 
 mod build;
+mod deposit;
 mod run;
 mod test;
+mod withdraw;
 
 pub use build::{build, BuildArgs};
+pub use deposit::{deposit, DepositArgs};
 pub use run::{run, Logging, RunArgs};
 pub use test::{test, TestArgs};
 
@@ -26,4 +29,7 @@ pub enum Commands {
 
     /// Run tests
     Test(TestArgs),
+
+    /// Generate a P2TR address to make a deposit
+    Deposit(DepositArgs),
 }

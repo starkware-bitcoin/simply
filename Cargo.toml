@@ -15,6 +15,7 @@ path = "tests/integration_tests.rs"
 simfony = { git = "https://github.com/m-kus/simfony", rev = "4cfde3af4bee376403cebd9b9acefff7ec21fbff", features = ["serde"] }
 simplicity-lang = { git = "https://github.com/m-kus/rust-simplicity", rev = "9256c8433125145d643afd50e00a6670738ee749", features = ["test-utils"] }
 itertools = "0.11"
+elements = { version = "0.25", features = ["serde"] }
 anyhow = "1.0"
 clap = { version = "4.4", features = ["derive"] }
 base64 = "0.21"
@@ -25,3 +26,7 @@ which = "5.0"
 regex = "1.0"
 tempfile = "3.0"
 walkdir = "2.4"
+reqwest = { version = "0.11", features = ["blocking"] }
+
+[dev-dependencies]
+secp256k1 = { version = "0.29.0", features = ["rand-std"] }

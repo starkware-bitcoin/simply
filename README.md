@@ -13,19 +13,31 @@ cargo install --git https://github.com/m-kus/simply simply
 ### Build
 
 ```sh
-simply build main.simf
+simply build --entrypoint main.simf
 ```
 
 ### Run
 
 ```sh
-simply run main.simf
+simply run --entrypoint main.simf
 ```
 
-### Debug
+### Test
 
 ```sh
-simply debug main.simf
+simply test
+```
+
+### Deposit
+
+```sh
+simply deposit
+```
+
+### Withdraw
+
+```sh
+simply withdraw
 ```
 
 ## Resources

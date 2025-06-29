@@ -21,7 +21,7 @@ impl SimfTestRunner {
         cmd.arg("run")
             .arg("--")
             .arg("build")
-            .arg("--source")
+            .arg("--entrypoint")
             .arg(source_path);
 
         if let Some(witness_path) = witness_path {
@@ -55,7 +55,7 @@ impl SimfTestRunner {
         cmd.arg("run")
             .arg("--")
             .arg("run")
-            .arg("--source")
+            .arg("--entrypoint")
             .arg(source_path);
 
         if let Some(witness_path) = witness_path {
@@ -84,7 +84,7 @@ impl SimfTestRunner {
             .arg("run")
             .arg("--logging")
             .arg("trace")
-            .arg("--source")
+            .arg("--entrypoint")
             .arg(source_path);
 
         if let Some(witness_path) = witness_path {
@@ -128,7 +128,42 @@ impl SimfTestRunner {
         println!("  ✓ Debug successful");
         println!("  Debug output length: {} characters", debug_output.len());
 
+        // Deposit the program
+        println!("  Depositing...");
+        self.deposit(source_path)?;
+        println!("  ✓ Deposit successful");
+
         println!("✓ All tests passed for {}", self.program_name);
+        Ok(())
+    }
+
+    pub fn deposit(&self, source_path: &Path) -> Result<()> {
+        let mut cmd = Command::new("cargo");
+        cmd.arg("run")
+            .arg("--")
+            .arg("deposit")
+            .arg("--entrypoint")
+            .arg(source_path);
+
+        let output = cmd
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .with_context(|| {
+                format!(
+                    "Failed to execute deposit command for {}",
+                    self.program_name
+                )
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("Deposit failed for {}: {}", self.program_name, stderr);
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("tex1pv59zny83x48z6szzm4jv3nywycxr62ph8f97aahe2sy2x3yyprsqq9rj9m"));
+
         Ok(())
     }
 }

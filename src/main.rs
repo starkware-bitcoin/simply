@@ -1,10 +1,14 @@
 use clap::Parser;
 
 mod commands;
+mod esplora;
 mod helpers;
+mod rpc;
+mod script;
 mod tracker;
+mod transaction;
 
-use commands::{build, run, test, Cli, Commands};
+use commands::{build, deposit, run, test, Cli, Commands};
 
 fn main() {
     let cli = Cli::parse();
@@ -13,6 +17,7 @@ fn main() {
         Commands::Build(args) => build(args),
         Commands::Run(args) => run(args),
         Commands::Test(args) => test(args),
+        Commands::Deposit(args) => deposit(args),
     };
 
     if let Err(err) = result {
