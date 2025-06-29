@@ -16,7 +16,7 @@ use crate::{
     tracker,
 };
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 pub struct RunArgs {
     #[command(flatten)]
     pub build: BuildArgs,
@@ -30,7 +30,7 @@ pub struct RunArgs {
     pub logging: Option<Logging>,
 }
 
-#[derive(clap::ValueEnum, Clone, PartialEq, PartialOrd)]
+#[derive(clap::ValueEnum, Clone, PartialEq, PartialOrd, Debug)]
 pub enum Logging {
     #[clap(name = "info")]
     Info,

@@ -8,9 +8,11 @@ use std::{fs, path::Path};
 
 use crate::helpers::{get_program_name, load_witness};
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub struct BuildArgs {
     /// Path to the source file
+    /// Default: `./src/main.simf`
+    #[arg(long, default_value = "./src/main.simf")]
     pub path: PathBuf,
 
     /// Path to the mcpp include directory
