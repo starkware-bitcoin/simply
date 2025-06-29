@@ -1,12 +1,9 @@
-use elements::bitcoin::TapSighashType;
 use elements::secp256k1_zkp as secp256k1;
 use elements::{
     confidential::{Asset, Nonce, Value},
-    hashes::Hash,
     pset::PartiallySignedTransaction,
-    sighash::{Prevouts, SighashCache},
-    Address, AssetId, AssetIssuance, BlockHash, LockTime, OutPoint, SchnorrSighashType, Script,
-    Sequence, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
+    Address, AssetId, AssetIssuance, LockTime, OutPoint, Script, Sequence, Transaction, TxIn,
+    TxInWitness, TxOut, TxOutWitness,
 };
 use simfony::{dummy_env, CompiledProgram, WitnessValues};
 
@@ -17,7 +14,7 @@ pub fn spend_script_path(
     outpoint: OutPoint,
     utxo: TxOut,
     address: Address,
-    key_pair: secp256k1::Keypair,
+    x_only_public_key: secp256k1::XOnlyPublicKey,
     program: CompiledProgram,
     witness_values: WitnessValues,
 ) -> anyhow::Result<Transaction> {
@@ -28,7 +25,6 @@ pub fn spend_script_path(
     let tx = create_transaction(outpoint, address, value, 2000);
 
     let script = create_script(&program)?;
-    let (x_only_public_key, _) = key_pair.x_only_public_key();
     let spend_info = taproot_spending_info(script.clone(), x_only_public_key)?;
 
     let control_block = spend_info
@@ -118,14 +114,6 @@ pub fn tlbtc_asset_id() -> AssetId {
     // NOTE: little endian
     AssetId::from_slice(
         &hex::decode("499a818545f6bae39fc03b637f2a4e1e64e590cac1bc3a6f6d71aa4443654c14").unwrap(),
-    )
-    .unwrap()
-}
-
-pub fn liquid_testnet_genesis_hash() -> BlockHash {
-    // NOTE: little endian
-    BlockHash::from_slice(
-        &hex::decode("c1b16ae24f2423aea2ea34552292793b5b5e82999a1eed81d56aee528eda71a7").unwrap(),
     )
     .unwrap()
 }

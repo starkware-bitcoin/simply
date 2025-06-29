@@ -10,6 +10,7 @@ pub use build::{build, BuildArgs};
 pub use deposit::{deposit, DepositArgs};
 pub use run::{run, Logging, RunArgs};
 pub use test::{test, TestArgs};
+pub use withdraw::{withdraw, WithdrawArgs};
 
 #[derive(Parser)]
 #[command(name = "simfony")]
@@ -32,4 +33,7 @@ pub enum Commands {
 
     /// Generate a P2TR address to make a deposit
     Deposit(DepositArgs),
+
+    /// Spend a transaction output
+    Withdraw(WithdrawArgs),
 }
