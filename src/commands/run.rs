@@ -54,7 +54,7 @@ pub fn run(args: RunArgs) -> Result<()> {
     };
 
     let compiled = compile_program(
-        &args.build.path,
+        &args.build.source,
         arguments,
         args.logging.is_some(),
         args.build.mcpp_inc_path,

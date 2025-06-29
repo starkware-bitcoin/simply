@@ -13,7 +13,7 @@ pub struct BuildArgs {
     /// Path to the source file
     /// Default: `./src/main.simf`
     #[arg(long, default_value = "./src/main.simf")]
-    pub path: PathBuf,
+    pub source: PathBuf,
 
     /// Path to the mcpp include directory
     /// If not provided, the program will be compiled without mcpp.
@@ -197,13 +197,13 @@ pub fn build(args: BuildArgs) -> Result<()> {
         None
     };
     let artifacts = build_program(
-        &args.path,
+        &args.source,
         witness,
         None,
         args.prune,
         false,
         args.mcpp_inc_path,
     )?;
-    let program_name = get_program_name(&args.path)?;
+    let program_name = get_program_name(&args.source)?;
     write_build_output(&args.target_dir, &program_name, artifacts)
 }

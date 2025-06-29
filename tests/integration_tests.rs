@@ -18,7 +18,11 @@ impl SimfTestRunner {
     /// Build a simf file
     pub fn build(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<()> {
         let mut cmd = Command::new("cargo");
-        cmd.arg("run").arg("--").arg("build").arg(source_path);
+        cmd.arg("run")
+            .arg("--")
+            .arg("build")
+            .arg("--source")
+            .arg(source_path);
 
         if let Some(witness_path) = witness_path {
             cmd.arg("--witness").arg(witness_path);
@@ -37,7 +41,7 @@ impl SimfTestRunner {
             anyhow::bail!("Build failed for {}: {}", self.program_name, stderr);
         }
 
-        let output_path = PathBuf::from("target").join(format!("{}.bin", self.program_name));
+        let output_path = PathBuf::from("target").join(format!("{}.json", self.program_name));
         if !output_path.exists() {
             anyhow::bail!("Build output file not found: {}", output_path.display());
         }
@@ -48,7 +52,11 @@ impl SimfTestRunner {
     /// Run a simf file
     pub fn run(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<()> {
         let mut cmd = Command::new("cargo");
-        cmd.arg("run").arg("--").arg("run").arg(source_path);
+        cmd.arg("run")
+            .arg("--")
+            .arg("run")
+            .arg("--source")
+            .arg(source_path);
 
         if let Some(witness_path) = witness_path {
             cmd.arg("--witness").arg(witness_path);
@@ -76,6 +84,7 @@ impl SimfTestRunner {
             .arg("run")
             .arg("--logging")
             .arg("trace")
+            .arg("--source")
             .arg(source_path);
 
         if let Some(witness_path) = witness_path {

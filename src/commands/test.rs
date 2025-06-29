@@ -34,7 +34,7 @@ pub fn test(args: TestArgs) -> Result<()> {
     let mut passed_tests = 0;
 
     // Find all *.simf files recursively in current directory
-    let source_dir = args.build.path.parent().unwrap();
+    let source_dir = args.build.source.parent().unwrap();
     let simf_files = find_simf_files(source_dir.to_str().unwrap())?;
 
     for file_path in simf_files {
@@ -137,7 +137,7 @@ fn run_single_test(file_path: &Path, test_func: &str, args: &TestArgs) -> Result
         logging: args.logging.clone(),
     };
     // Update the build path to use the temporary file
-    run_args.build.path = temp_file;
+    run_args.build.source = temp_file;
 
     // Call run function directly
     match run(run_args) {
