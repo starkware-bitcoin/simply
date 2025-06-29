@@ -1,87 +1,83 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
-use simfony::{dummy_env, Arguments, CompiledProgram, WitnessValues};
-use simplicity::ffi::tests::{run_program, TestUpTo};
-use std::fs;
+use simfony::dummy_env;
+use simplicity::{
+    ffi::tests::{run_program, TestUpTo},
+    BitMachine,
+};
 use std::path::PathBuf;
+
+use crate::{
+    commands::{
+        build::{compile_program, satisfy_program},
+        BuildArgs,
+    },
+    helpers::{load_arguments, load_witness},
+    tracker,
+};
 
 #[derive(Args)]
 pub struct RunArgs {
-    /// Path to the source file
-    pub path: PathBuf,
-
-    /// Path to the witness file
-    #[arg(long)]
-    pub witness: Option<PathBuf>,
+    #[command(flatten)]
+    pub build: BuildArgs,
 
     /// Path to file with arguments
     #[arg(long)]
     pub param: Option<PathBuf>,
+
+    /// Print debug logs
+    #[arg(long)]
+    pub logging: Option<Logging>,
 }
 
-fn parse_witness(content: Option<&str>) -> Result<WitnessValues> {
-    content.map_or(Ok(WitnessValues::default()), |s| {
-        serde_json::from_str(s).with_context(|| "Failed to parse witness")
-    })
+#[derive(clap::ValueEnum, Clone, PartialEq, PartialOrd)]
+pub enum Logging {
+    #[clap(name = "info")]
+    Info,
+    #[clap(name = "debug")]
+    Debug,
+    #[clap(name = "trace")]
+    Trace,
 }
 
-fn parse_arguments(content: Option<&str>) -> Result<Arguments> {
-    content.map_or(Ok(Arguments::default()), |s| {
-        serde_json::from_str(s).with_context(|| "Failed to parse arguments")
-    })
-}
+pub fn run(args: RunArgs) -> Result<()> {
+    let witness = if let Some(witness_path) = args.build.witness {
+        load_witness(Some(&witness_path))?
+    } else {
+        Default::default()
+    };
 
-pub fn handle_run(args: RunArgs) -> Result<()> {
-    let source = fs::read_to_string(&args.path)
-        .with_context(|| format!("Failed to read source file: {}", args.path.display()))?;
+    let arguments = if let Some(param_path) = args.param {
+        load_arguments(Some(&param_path))?
+    } else {
+        Default::default()
+    };
 
-    let param_content =
-        if let Some(param_path) = args.param {
-            Some(fs::read_to_string(&param_path).with_context(|| {
-                format!("Failed to read parameter file: {}", param_path.display())
-            })?)
-        } else {
-            None
-        };
-
-    let witness_content =
-        if let Some(witness_path) = args.witness {
-            Some(fs::read_to_string(&witness_path).with_context(|| {
-                format!("Failed to read witness file: {}", witness_path.display())
-            })?)
-        } else {
-            None
-        };
-
-    let arguments = parse_arguments(param_content.as_deref())?;
-    let compiled = CompiledProgram::new(source, arguments, true).map_err(|e| anyhow::anyhow!(e))?;
-    let witness = parse_witness(witness_content.as_deref())?;
-    let satisfied = compiled
-        .satisfy_with_env(witness, Some(&dummy_env::dummy()))
-        .map_err(|e| anyhow::anyhow!(e))?;
-
+    let compiled = compile_program(&args.build.path, arguments, args.logging.is_some())?;
+    let satisfied = satisfy_program(compiled, witness, args.build.prune)?;
     let node = satisfied.redeem();
-    println!("Node bounds: {:?}", node.bounds());
-
-    let (program_bytes, witness_bytes) = node.encode_to_vec();
-
-    let padding_size = node
-        .bounds()
-        .cost
-        .get_padding(&vec![witness_bytes.clone(), program_bytes.clone()])
-        .unwrap_or_default()
-        .len();
-    println!("Padding size: {}", padding_size);
-
     let env = dummy_env::dummy();
-    run_program(
-        &program_bytes,
-        &witness_bytes,
-        TestUpTo::Everything,
-        None,
-        Some(env.c_tx_env()),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
+
+    if let Some(logging) = args.logging {
+        let mut machine = BitMachine::for_program(node)?;
+        let mut tracker = tracker::Tracker {
+            debug_symbols: satisfied.debug_symbols(),
+            debug_logs: logging >= Logging::Debug,
+            jet_traces: logging == Logging::Trace,
+        };
+        let res = machine.exec_with_tracker(node, &env, &mut tracker)?;
+        println!("Result: {}", res);
+    } else {
+        let (program_bytes, witness_bytes) = node.encode_to_vec();
+        run_program(
+            &program_bytes,
+            &witness_bytes,
+            TestUpTo::Everything,
+            None,
+            Some(env.c_tx_env()),
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
+    }
 
     Ok(())
 }

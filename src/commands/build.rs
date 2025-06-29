@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use simfony::{Arguments, CompiledProgram, WitnessValues};
-use std::fs;
+use serde::{Deserialize, Serialize};
+use simfony::{dummy_env, Arguments, CompiledProgram, SatisfiedProgram, WitnessValues};
 use std::path::PathBuf;
+use std::{fs, path::Path};
 
-#[derive(Args)]
+use crate::helpers::{get_program_name, load_witness};
+
+#[derive(Args, Clone)]
 pub struct BuildArgs {
     /// Path to the source file
     pub path: PathBuf,
@@ -13,19 +16,19 @@ pub struct BuildArgs {
     #[arg(long)]
     pub witness: Option<PathBuf>,
 
-    /// Name of the program (will use project name by default)
+    /// Prune the program using the provided witness
     #[arg(long)]
-    pub program_name: Option<String>,
+    pub prune: bool,
 
     /// Output directory for the compiled program (will use `target` by default)
     #[arg(long, name = "target-dir", default_value = "./target")]
     pub target_dir: PathBuf,
 }
 
-fn parse_witness(content: Option<&str>) -> Result<WitnessValues> {
-    content.map_or(Ok(WitnessValues::default()), |s| {
-        serde_json::from_str(s).with_context(|| "Failed to parse witness")
-    })
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildArtifacts {
+    pub program: Vec<u8>,
+    pub witness: Option<Vec<u8>>,
 }
 
 fn format_node_bounds(bounds: &simplicity::NodeBounds) -> String {
@@ -35,56 +38,10 @@ fn format_node_bounds(bounds: &simplicity::NodeBounds) -> String {
     )
 }
 
-fn get_program_name(source_path: &PathBuf) -> Result<String> {
-    let canonical_path = source_path
-        .canonicalize()
-        .unwrap_or_else(|_| source_path.clone());
-    let components: Vec<_> = canonical_path.components().collect();
-
-    // Rule 0: if file name is not main.simf, use it as program name (strip extension)
-    if let Some(file_name) = source_path.file_name() {
-        if let Some(file_name_str) = file_name.to_str() {
-            if file_name_str != "main.simf" {
-                return Ok(file_name_str.to_string().replace(".simf", ""));
-            }
-        }
-    }
-
-    // Rule 1: if file is in <project dir>/src/<simf file>
-    // Check if path has at least 3 components and second-to-last is "src"
-    if components.len() >= 3 {
-        if let std::path::Component::Normal(name) = components[components.len() - 2] {
-            if name.to_str() == Some("src") {
-                if let std::path::Component::Normal(project_name) = components[components.len() - 3]
-                {
-                    if let Some(name_str) = project_name.to_str() {
-                        return Ok(name_str.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    // Rule 2: if file is in */<package name>/<simf file>
-    // Check if path has at least 2 components
-    if components.len() >= 2 {
-        if let std::path::Component::Normal(package_name) = components[components.len() - 2] {
-            if let Some(name_str) = package_name.to_str() {
-                return Ok(name_str.to_string());
-            }
-        }
-    }
-
-    Err(anyhow::anyhow!(
-        "Cannot determine project name from path: {}",
-        source_path.display()
-    ))
-}
-
 fn write_build_output(
     target_dir: &PathBuf,
     program_name: &str,
-    program_bytes: Vec<u8>,
+    artifacts: BuildArtifacts,
 ) -> Result<()> {
     // Create output directory if it doesn't exist
     fs::create_dir_all(target_dir).with_context(|| {
@@ -96,34 +53,62 @@ fn write_build_output(
 
     // Create output file path
     // TODO(m_kus): add witness hash to distinct between programs pruned on different witnesses.
-    let output_file = target_dir.join(format!("{}.bin", program_name));
+    let output_file = target_dir.join(program_name).with_extension("json");
 
-    // Write binary data directly to file
-    fs::write(&output_file, program_bytes)
+    // Serialize artifacts to JSON and write to file
+    let json_content = serde_json::to_string_pretty(&artifacts)
+        .with_context(|| "Failed to serialize build artifacts to JSON")?;
+
+    fs::write(&output_file, json_content)
         .with_context(|| format!("Failed to write output file: {}", output_file.display()))?;
 
-    println!("Compiled program written to: {}", output_file.display());
-
+    println!("Build artifacts written to: {}", output_file.display());
     Ok(())
 }
 
-pub fn handle_build(args: BuildArgs) -> Result<()> {
-    let source = fs::read_to_string(&args.path)
-        .with_context(|| format!("Failed to read source file: {}", args.path.display()))?;
+pub fn compile_program(
+    source_path: &Path,
+    arguments: Arguments,
+    debug_symbols: bool,
+) -> Result<CompiledProgram> {
+    let source = fs::read_to_string(source_path)
+        .with_context(|| format!("Failed to read source file: {}", source_path.display()))?;
 
-    let compiled = CompiledProgram::new(source, Arguments::default(), true)
+    let compiled = CompiledProgram::new(source, arguments, debug_symbols)
         .map_err(|e| anyhow::anyhow!(e))
         .with_context(|| "Failed to compile program")?;
 
-    let program_bytes = if let Some(witness_path) = args.witness {
+    Ok(compiled)
+}
+
+pub fn satisfy_program(
+    compiled: CompiledProgram,
+    witness: WitnessValues,
+    prune: bool,
+) -> Result<SatisfiedProgram> {
+    if prune {
         println!("WARNING: program will be pruned using the provided witness, it might not work with a different one.");
+        // TODO(m_kus): provide env via CLI
+        let env = dummy_env::dummy();
+        compiled
+            .satisfy_with_env(witness, Some(&env))
+            .map_err(|e| anyhow::anyhow!(e))
+    } else {
+        compiled.satisfy(witness).map_err(|e| anyhow::anyhow!(e))
+    }
+}
 
-        let witness_content = fs::read_to_string(&witness_path)
-            .with_context(|| format!("Failed to read witness file: {}", witness_path.display()))?;
+pub fn build_program(
+    source_path: &Path,
+    witness: Option<WitnessValues>,
+    arguments: Option<Arguments>,
+    prune: bool,
+    debug_symbols: bool,
+) -> Result<BuildArtifacts> {
+    let compiled = compile_program(source_path, arguments.unwrap_or_default(), debug_symbols)?;
 
-        let witness = parse_witness(Some(&witness_content))?;
-        let satisfied = compiled.satisfy(witness).map_err(|e| anyhow::anyhow!(e))?;
-
+    if let Some(witness) = witness {
+        let satisfied = satisfy_program(compiled, witness, prune)?;
         let node = satisfied.redeem();
         println!("{}", format_node_bounds(&node.bounds()));
 
@@ -132,21 +117,51 @@ pub fn handle_build(args: BuildArgs) -> Result<()> {
         let padding_size = node
             .bounds()
             .cost
-            .get_padding(&vec![witness_bytes, program_bytes.clone()])
+            .get_padding(&vec![witness_bytes.clone(), program_bytes.clone()])
             .unwrap_or_default()
             .len();
-        println!("Padding size: {}", padding_size);
+        println!("Required padding size: {}", padding_size);
 
-        program_bytes
+        Ok(BuildArtifacts {
+            program: program_bytes,
+            witness: Some(witness_bytes),
+        })
     } else {
-        compiled.commit().encode_to_vec()
-    };
+        Ok(BuildArtifacts {
+            program: compiled.commit().encode_to_vec(),
+            witness: None,
+        })
+    }
+}
 
-    let program_name = if let Some(program_name) = args.program_name {
-        program_name
+// TODO(m_kus): serialize debug symbols and allow to load artifacts instead of rebuilding for run
+#[allow(dead_code)]
+pub fn load_artifacts(target_dir: &PathBuf, program_name: &str) -> Result<BuildArtifacts> {
+    let output_file = target_dir.join(program_name).with_extension("json");
+    let json_content = fs::read_to_string(&output_file).with_context(|| {
+        format!(
+            "Failed to read build artifacts from {}",
+            output_file.display()
+        )
+    })?;
+
+    let artifacts: BuildArtifacts = serde_json::from_str(&json_content).with_context(|| {
+        format!(
+            "Failed to deserialize build artifacts from {}",
+            output_file.display()
+        )
+    })?;
+
+    Ok(artifacts)
+}
+
+pub fn build(args: BuildArgs) -> Result<()> {
+    let witness = if let Some(witness_path) = args.witness {
+        Some(load_witness(Some(&witness_path))?)
     } else {
-        get_program_name(&args.path)?
+        None
     };
-
-    write_build_output(&args.target_dir, &program_name, program_bytes)
+    let artifacts = build_program(&args.path, witness, None, args.prune, false)?;
+    let program_name = get_program_name(&args.path)?;
+    write_build_output(&args.target_dir, &program_name, artifacts)
 }

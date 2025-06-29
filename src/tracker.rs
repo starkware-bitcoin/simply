@@ -17,6 +17,8 @@ use simplicity::{
 
 pub struct Tracker<'a> {
     pub debug_symbols: &'a DebugSymbols,
+    pub debug_logs: bool,
+    pub jet_traces: bool,
 }
 
 #[derive(Debug)]
@@ -55,6 +57,10 @@ impl<'a> ExecTracker<Elements> for Tracker<'a> {
         output_buffer: &[UWORD],
         _: bool,
     ) {
+        if !self.jet_traces {
+            return;
+        }
+
         let args = parse_args(jet, input_buffer).expect("parse args");
         let result = parse_result(jet, output_buffer).expect("parse res");
         println!(
@@ -66,6 +72,10 @@ impl<'a> ExecTracker<Elements> for Tracker<'a> {
     }
 
     fn track_dbg_call(&mut self, cmr: &Cmr, value: simplicity::Value) {
+        if !self.debug_logs {
+            return;
+        }
+
         if let Some(tracked_call) = self.debug_symbols.get(cmr) {
             match tracked_call.map_value(&StructuralValue::from(value)) {
                 Some(Either::Right(debug_value)) => {

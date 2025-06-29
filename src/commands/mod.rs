@@ -1,12 +1,10 @@
 use clap::{Parser, Subcommand};
 
 mod build;
-mod debug;
 mod run;
 
-pub use build::{handle_build, BuildArgs};
-pub use debug::{handle_debug, DebugArgs};
-pub use run::{handle_run, RunArgs};
+pub use build::{build, BuildArgs};
+pub use run::{run, RunArgs};
 
 #[derive(Parser)]
 #[command(name = "simfony")]
@@ -23,7 +21,4 @@ pub enum Commands {
 
     /// Run a Simfony program
     Run(RunArgs),
-
-    /// Debug a Simfony program
-    Debug(DebugArgs),
 }

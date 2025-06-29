@@ -18,12 +18,7 @@ impl SimfTestRunner {
     /// Build a simf file
     pub fn build(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<()> {
         let mut cmd = Command::new("cargo");
-        cmd.arg("run")
-            .arg("--")
-            .arg("build")
-            .arg(source_path)
-            .arg("--program-name")
-            .arg(&self.program_name);
+        cmd.arg("run").arg("--").arg("build").arg(source_path);
 
         if let Some(witness_path) = witness_path {
             cmd.arg("--witness").arg(witness_path);
@@ -76,7 +71,12 @@ impl SimfTestRunner {
     /// Debug a simf file
     pub fn debug(&self, source_path: &Path, witness_path: Option<&Path>) -> Result<String> {
         let mut cmd = Command::new("cargo");
-        cmd.arg("run").arg("--").arg("debug").arg(source_path);
+        cmd.arg("run")
+            .arg("--")
+            .arg("run")
+            .arg("--logging")
+            .arg("trace")
+            .arg(source_path);
 
         if let Some(witness_path) = witness_path {
             cmd.arg("--witness").arg(witness_path);

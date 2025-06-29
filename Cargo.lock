@@ -701,6 +701,7 @@ dependencies = [
  "clap",
  "hex",
  "itertools 0.11.0",
+ "serde",
  "serde_json",
  "simfony",
  "simplicity-lang",
