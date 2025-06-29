@@ -53,7 +53,12 @@ pub fn run(args: RunArgs) -> Result<()> {
         Default::default()
     };
 
-    let compiled = compile_program(&args.build.path, arguments, args.logging.is_some())?;
+    let compiled = compile_program(
+        &args.build.path,
+        arguments,
+        args.logging.is_some(),
+        args.build.mcpp_inc_path,
+    )?;
     let satisfied = satisfy_program(compiled, witness, args.build.prune)?;
     let node = satisfied.redeem();
     let env = dummy_env::dummy();

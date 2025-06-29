@@ -3,6 +3,7 @@ use clap::Args;
 use serde::{Deserialize, Serialize};
 use simfony::{dummy_env, Arguments, CompiledProgram, SatisfiedProgram, WitnessValues};
 use std::path::PathBuf;
+use std::process::Command;
 use std::{fs, path::Path};
 
 use crate::helpers::{get_program_name, load_witness};
@@ -11,6 +12,11 @@ use crate::helpers::{get_program_name, load_witness};
 pub struct BuildArgs {
     /// Path to the source file
     pub path: PathBuf,
+
+    /// Path to the mcpp include directory
+    /// If not provided, the program will be compiled without mcpp.
+    #[arg(long)]
+    pub mcpp_inc_path: Option<PathBuf>,
 
     /// Path to the witness file
     #[arg(long)]
@@ -70,9 +76,30 @@ pub fn compile_program(
     source_path: &Path,
     arguments: Arguments,
     debug_symbols: bool,
+    mcpp_inc_path: Option<PathBuf>,
 ) -> Result<CompiledProgram> {
-    let source = fs::read_to_string(source_path)
-        .with_context(|| format!("Failed to read source file: {}", source_path.display()))?;
+    let source = if let Some(mcpp_inc_path) = mcpp_inc_path {
+        // Try to find mcpp binary in the path
+        let mcpp_path = which::which("mcpp").with_context(|| "mcpp binary not found")?;
+
+        // Run mcpp to preprocess the program
+        let mcpp_output = Command::new(&mcpp_path)
+            .arg("-P")
+            .arg("-I")
+            .arg(mcpp_inc_path)
+            .arg(source_path)
+            .output()
+            .with_context(|| format!("Failed to run mcpp: {}", mcpp_path.display()))?;
+
+        if !mcpp_output.status.success() {
+            anyhow::bail!("mcpp failed with exit code: {}", mcpp_output.status);
+        }
+
+        String::from_utf8_lossy(&mcpp_output.stdout).to_string()
+    } else {
+        fs::read_to_string(source_path)
+            .with_context(|| format!("Failed to read source file: {}", source_path.display()))?
+    };
 
     let compiled = CompiledProgram::new(source, arguments, debug_symbols)
         .map_err(|e| anyhow::anyhow!(e))
@@ -104,8 +131,14 @@ pub fn build_program(
     arguments: Option<Arguments>,
     prune: bool,
     debug_symbols: bool,
+    mcpp_inc_path: Option<PathBuf>,
 ) -> Result<BuildArtifacts> {
-    let compiled = compile_program(source_path, arguments.unwrap_or_default(), debug_symbols)?;
+    let compiled = compile_program(
+        source_path,
+        arguments.unwrap_or_default(),
+        debug_symbols,
+        mcpp_inc_path,
+    )?;
 
     if let Some(witness) = witness {
         let satisfied = satisfy_program(compiled, witness, prune)?;
@@ -161,7 +194,14 @@ pub fn build(args: BuildArgs) -> Result<()> {
     } else {
         None
     };
-    let artifacts = build_program(&args.path, witness, None, args.prune, false)?;
+    let artifacts = build_program(
+        &args.path,
+        witness,
+        None,
+        args.prune,
+        false,
+        args.mcpp_inc_path,
+    )?;
     let program_name = get_program_name(&args.path)?;
     write_build_output(&args.target_dir, &program_name, artifacts)
 }
