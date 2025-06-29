@@ -29,7 +29,7 @@ simply build [OPTIONS]
 - `--prune` - Prune the program using the provided witness (may limit reusability)
 - `--target-dir <PATH>` - Output directory for compiled artifacts (default: `./target`)
 
-**Output:** Build artifacts are saved as JSON files containing the compiled program and optional witness data.
+**Output:** Build artifacts are saved as JSON files containing the compiled program and optional witness data. The build process also displays node bounds and the padding required for your program. Padding represents extra space your program should occupy to compensate for execution resources. Since Bitcoin doesn't have the concept of gas, everything is measured in weight units.
 
 ### Run
 
@@ -44,7 +44,7 @@ simply run [OPTIONS]
 - `--param <PATH>` - Path to file containing program arguments (JSON format)
 - `--logging <LEVEL>` - Enable debug logging (`info`, `debug`, or `trace`)
 
-**Usage:** Useful for testing programs locally before deployment.
+**Usage:** Useful for testing programs locally before deployment. By default, the run command uses the same code execution engine as Elements/Liquid nodes, making it ideal for testing compatibility with the actual Bitcoin network. If you specify logging, a Rust runner will be used instead, as it supports debugging features and provides more detailed execution information.
 
 ### Test
 
@@ -71,7 +71,7 @@ simply deposit [OPTIONS]
 **Flags:**
 - All flags from `build` command
 
-**Output:** Prints a Bitcoin P2TR address that can receive funds for the compiled program.
+**Output:** Prints a Bitcoin P2TR address that can receive funds for the compiled program. The generated address is a script-only taproot address that uses an unspendable NUMA key, ensuring the funds can only be spent through the Simplicity program logic.
 
 ### Withdraw
 
