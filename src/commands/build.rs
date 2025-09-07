@@ -2,6 +2,9 @@ use anyhow::{Context, Result};
 use clap::Args;
 use serde::{Deserialize, Serialize};
 use simfony::{dummy_env, Arguments, CompiledProgram, SatisfiedProgram, WitnessValues};
+use simplicity::human_encoding::Forest;
+use simplicity::jet::Elements;
+use simplicity::{BitIter, CommitNode};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{fs, path::Path};
@@ -28,6 +31,10 @@ pub struct BuildArgs {
     #[arg(long)]
     pub prune: bool,
 
+    /// Write Simplicity assembly to a file
+    #[arg(long)]
+    pub assembly: bool,
+
     /// Output directory for the compiled program (will use `target` by default)
     #[arg(long, name = "target-dir", default_value = "./target")]
     pub target_dir: PathBuf,
@@ -50,6 +57,7 @@ fn write_build_output(
     target_dir: &PathBuf,
     program_name: &str,
     artifacts: BuildArtifacts,
+    assembly: bool,
 ) -> Result<()> {
     // Create output directory if it doesn't exist
     fs::create_dir_all(target_dir).with_context(|| {
@@ -69,6 +77,20 @@ fn write_build_output(
 
     fs::write(&output_file, json_content)
         .with_context(|| format!("Failed to write output file: {}", output_file.display()))?;
+
+    if assembly {
+        let iter = BitIter::from(artifacts.program.into_iter());
+        let commit = CommitNode::decode(iter).with_context(|| "failed to decode program")?;
+        let prog = Forest::<Elements>::from_program(commit);
+
+        let assembly_file = target_dir.join(program_name).with_extension("simp");
+
+        fs::write(&assembly_file, prog.string_serialize()).with_context(|| {
+            format!("Failed to write assembly file: {}", assembly_file.display())
+        })?;
+
+        println!("Assembly written to: {}", assembly_file.display());
+    }
 
     println!("Build artifacts written to: {}", output_file.display());
     Ok(())
@@ -205,5 +227,5 @@ pub fn build(args: BuildArgs) -> Result<()> {
         args.mcpp_inc_path,
     )?;
     let program_name = get_program_name(&args.entrypoint)?;
-    write_build_output(&args.target_dir, &program_name, artifacts)
+    write_build_output(&args.target_dir, &program_name, artifacts, args.assembly)
 }
