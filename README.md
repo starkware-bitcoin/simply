@@ -136,5 +136,5 @@ simply withdraw --entrypoint main.simf --txid abc123... --destination bc1q...
 
 ## Resources
 
-- [SimplicityHL Documentation](https://docs.simfony.dev/)
+- [SimplicityHL Documentation](https://docs.simplicity-lang.org/simplicityhl-reference/)
 - [Simplicity Specification](https://blockstream.com/simplicity.pdf)
