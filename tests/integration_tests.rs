@@ -162,7 +162,7 @@ impl SimfTestRunner {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("tex1pv59zny83x48z6szzm4jv3nywycxr62ph8f97aahe2sy2x3yyprsqq9rj9m"));
+        assert!(stdout.contains("tex1pvlydvg2lkew3068jyrsw469aac9lefnq0spjc7vqnxwrqrqmxrhsaythrt"));
 
         Ok(())
     }
