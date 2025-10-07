@@ -8,7 +8,7 @@ mod script;
 mod tracker;
 mod transaction;
 
-use commands::{build, deposit, run, test, withdraw, Cli, Commands};
+use commands::{build, deposit, run, sign, test, withdraw, Cli, Commands};
 
 fn main() {
     let cli = Cli::parse();
@@ -19,6 +19,7 @@ fn main() {
         Commands::Test(args) => test(args),
         Commands::Deposit(args) => deposit(args),
         Commands::Withdraw(args) => withdraw(args),
+        Commands::Sign(args) => sign(args),
     };
 
     if let Err(err) = result {

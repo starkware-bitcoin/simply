@@ -116,7 +116,14 @@ pub fn compile_program(
             .with_context(|| format!("Failed to run mcpp: {}", mcpp_path.display()))?;
 
         if !mcpp_output.status.success() {
-            anyhow::bail!("mcpp failed with exit code: {}", mcpp_output.status);
+            let stderr = String::from_utf8_lossy(&mcpp_output.stderr);
+            let stdout = String::from_utf8_lossy(&mcpp_output.stdout);
+            anyhow::bail!(
+                "mcpp failed with exit code: {}\n--- stderr ---\n{}\n--- stdout ---\n{}",
+                mcpp_output.status,
+                stderr.trim_end(),
+                stdout.trim_end()
+            );
         }
 
         String::from_utf8_lossy(&mcpp_output.stdout).to_string()

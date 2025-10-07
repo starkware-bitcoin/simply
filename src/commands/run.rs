@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Args;
+use elements::{LockTime, Sequence};
 use simfony::dummy_env;
 use simplicity::{
     ffi::tests::{run_program, TestUpTo},
@@ -28,6 +29,16 @@ pub struct RunArgs {
     /// Print debug logs
     #[arg(long)]
     pub logging: Option<Logging>,
+
+    /// Lock time
+    /// See https://learnmeabitcoin.com/technical/transaction/locktime/
+    #[arg(long)]
+    pub lock_time: Option<u32>,
+
+    /// Sequence
+    /// See https://learnmeabitcoin.com/technical/transaction/input/sequence/
+    #[arg(long)]
+    pub sequence: Option<u32>,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, PartialOrd, Debug)]
@@ -61,7 +72,11 @@ pub fn run(args: RunArgs) -> Result<()> {
     )?;
     let satisfied = satisfy_program(compiled, witness, args.build.prune)?;
     let node = satisfied.redeem();
-    let env = dummy_env::dummy();
+    let env = dummy_env::dummy_with(
+        LockTime::from_consensus(args.lock_time.unwrap_or(0)),
+        Sequence::from_consensus(args.sequence.unwrap_or(0)),
+        false,
+    );
 
     if let Some(logging) = args.logging {
         let mut machine = BitMachine::for_program(node)?;

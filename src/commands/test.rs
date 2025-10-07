@@ -24,6 +24,7 @@ pub struct TestArgs {
 
 #[derive(Debug)]
 struct TestResult {
+    name: String,
     success: bool,
     error_message: Option<String>,
 }
@@ -50,16 +51,13 @@ pub fn test(args: TestArgs) -> Result<()> {
 
             print!("{} ... ", test_name);
 
-            let result = run_single_test(&file_path, &test_func, &args)?;
+            let result = run_single_test(&file_path, &test_func, &test_name, &args)?;
 
             if result.success {
                 println!("{}ok{}", GREEN, NC);
                 passed_tests += 1;
             } else {
                 println!("{}err{}", RED, NC);
-                if let Some(error) = &result.error_message {
-                    eprintln!("{}", error);
-                }
             }
 
             test_results.push(result);
@@ -69,6 +67,16 @@ pub fn test(args: TestArgs) -> Result<()> {
     // Print summary
     let failed_tests = total_tests - passed_tests;
     if failed_tests > 0 {
+        // Print failures with details after all tests have run (Rust-style)
+        println!("\nfailures:\n");
+        for result in test_results.iter().filter(|r| !r.success) {
+            println!("---- {} ----", result.name);
+            if let Some(error) = &result.error_message {
+                println!("{}", error);
+            }
+            println!("");
+        }
+
         println!(
             "\ntest result: {}failed{}. {} passed; {} failed",
             RED, NC, passed_tests, failed_tests
@@ -82,6 +90,56 @@ pub fn test(args: TestArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn remove_function_by_name(source: &str, name: &str) -> String {
+    // Remove all function definitions named `name`, including their bodies
+    let pattern = format!(r"(?m)^\s*fn\s+{}\b", regex::escape(name));
+    let re = Regex::new(&pattern).unwrap();
+
+    let mut output = String::new();
+    let mut last_index = 0usize;
+
+    for m in re.find_iter(source) {
+        let start = m.start();
+        // Write content up to the function start
+        output.push_str(&source[last_index..start]);
+
+        // Find the opening brace of the function body
+        let bytes = source.as_bytes();
+        let mut cursor = m.end();
+        while cursor < bytes.len() && bytes[cursor] != b'{' {
+            cursor += 1;
+        }
+        if cursor >= bytes.len() || bytes[cursor] != b'{' {
+            // No body found; skip only the declaration match
+            last_index = m.end();
+            continue;
+        }
+
+        // Walk braces to find the matching closing brace
+        let mut depth = 0usize;
+        let mut end = cursor;
+        while end < bytes.len() {
+            if bytes[end] == b'{' {
+                depth += 1;
+            } else if bytes[end] == b'}' {
+                depth -= 1;
+                if depth == 0 {
+                    end += 1; // include closing brace
+                    break;
+                }
+            }
+            end += 1;
+        }
+
+        // Skip the entire function from `start` to `end`
+        last_index = end.min(source.len());
+    }
+
+    // Append any remaining content
+    output.push_str(&source[last_index..]);
+    output
 }
 
 fn find_simf_files(dir: &str) -> Result<Vec<PathBuf>> {
@@ -112,7 +170,12 @@ fn extract_test_functions(file_path: &Path) -> Result<Vec<String>> {
     Ok(test_functions)
 }
 
-fn run_single_test(file_path: &Path, test_func: &str, args: &TestArgs) -> Result<TestResult> {
+fn run_single_test(
+    file_path: &Path,
+    test_func: &str,
+    test_name: &str,
+    args: &TestArgs,
+) -> Result<TestResult> {
     // Create temporary directory
     let temp_dir = tempfile::tempdir().with_context(|| "Failed to create temporary directory")?;
 
@@ -123,8 +186,13 @@ fn run_single_test(file_path: &Path, test_func: &str, args: &TestArgs) -> Result
     let content = fs::read_to_string(file_path)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
-    // Replace test function with main
-    let modified_content = content.replace(&format!("fn {}", test_func), "fn main");
+    // If file already defines a `main`, remove the whole function to avoid conflicts
+    let content = remove_function_by_name(&content, "main");
+
+    // Replace the specific test function declaration with `main`
+    let test_decl_re =
+        Regex::new(&format!(r"(?m)^\s*fn\s+{}\b", regex::escape(test_func))).unwrap();
+    let modified_content = test_decl_re.replace(&content, "fn main").to_string();
 
     // Write modified content to temp file
     fs::write(&temp_file, modified_content)
@@ -135,6 +203,8 @@ fn run_single_test(file_path: &Path, test_func: &str, args: &TestArgs) -> Result
         build: args.build.clone(),
         param: None,
         logging: args.logging.clone(),
+        lock_time: None,
+        sequence: None,
     };
     // Update the build path to use the temporary file
     run_args.build.entrypoint = temp_file;
@@ -142,12 +212,15 @@ fn run_single_test(file_path: &Path, test_func: &str, args: &TestArgs) -> Result
     // Call run function directly
     match run(run_args) {
         Ok(_) => Ok(TestResult {
+            name: test_name.to_string(),
             success: true,
             error_message: None,
         }),
         Err(e) => Ok(TestResult {
+            name: test_name.to_string(),
             success: false,
-            error_message: Some(format!("{}", e)),
+            // Use pretty Display with full context chain
+            error_message: Some(format!("{:#}", e)),
         }),
     }
 }

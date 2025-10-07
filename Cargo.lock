@@ -1437,7 +1437,6 @@ dependencies = [
  "itertools 0.11.0",
  "regex",
  "reqwest",
- "secp256k1",
  "serde",
  "serde_json",
  "simfony",

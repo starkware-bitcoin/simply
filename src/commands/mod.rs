@@ -3,18 +3,20 @@ use clap::{Parser, Subcommand};
 mod build;
 mod deposit;
 mod run;
+mod sign;
 mod test;
 mod withdraw;
 
 pub use build::{build, BuildArgs};
 pub use deposit::{deposit, DepositArgs};
 pub use run::{run, Logging, RunArgs};
+pub use sign::{sign, SignArgs};
 pub use test::{test, TestArgs};
 pub use withdraw::{withdraw, WithdrawArgs};
 
 #[derive(Parser)]
-#[command(name = "simfony")]
-#[command(about = "Simfony language CLI tool", long_about = None)]
+#[command(name = "simply")]
+#[command(about = "SimplicityHL language CLI tool", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -22,10 +24,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Build a Simfony program
+    /// Build a SimplicityHL program
     Build(BuildArgs),
 
-    /// Run a Simfony program
+    /// Run a SimplicityHL program
     Run(RunArgs),
 
     /// Run tests
@@ -36,4 +38,7 @@ pub enum Commands {
 
     /// Spend a transaction output
     Withdraw(WithdrawArgs),
+
+    /// Sign a message
+    Sign(SignArgs),
 }
