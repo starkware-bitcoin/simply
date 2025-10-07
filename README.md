@@ -43,6 +43,8 @@ simply run [OPTIONS]
 - All flags from `build` command
 - `--param <PATH>` - Path to file containing program arguments (JSON format)
 - `--logging <LEVEL>` - Enable debug logging (`info`, `debug`, or `trace`)
+ - `--lock-time <N>` - Transaction lock time (consensus value, default: 0)
+ - `--sequence <N>` - Input sequence (consensus value, default: 0)
 
 **Usage:** Useful for testing programs locally before deployment. By default, the run command uses the same code execution engine as Elements/Liquid nodes, making it ideal for testing compatibility with the actual Bitcoin network. If you specify logging, a Rust runner will be used instead, as it supports debugging features and provides more detailed execution information.
 
@@ -88,6 +90,33 @@ simply withdraw [OPTIONS]
 - `--dry-run` - Generate transaction without broadcasting (prints hex)
 
 **Usage:** Creates and optionally broadcasts a transaction that spends a UTXO using the compiled program.
+
+### Sign
+
+Signs arbitrary data using BIP340 (Schnorr) and prints the results.
+
+```sh
+simply sign --message <HEX> [--secret <HEX>]
+```
+
+**Flags:**
+- `--message <HEX>` - Message to sign, hex-encoded (required)
+- `--secret <HEX>` - Secret key (32-byte hex). If omitted, a random key is generated
+
+**Output:**
+- Signature (BIP340) in hex
+- Message (as provided, hex)
+- Public key (x-only) in hex
+- Private key in hex (only printed when generated randomly)
+
+**Examples:**
+```sh
+# Sign with a randomly generated key
+simply sign --message 48656c6c6f
+
+# Sign with a provided secret key
+simply sign --message 48656c6c6f --secret e3a1...32-bytes-hex...
+```
 
 ## File Formats
 
