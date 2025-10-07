@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use std::{fs, path::Path};
 use walkdir::WalkDir;
 
-use crate::commands::{run, BuildArgs, Logging, RunArgs};
+use crate::commands::run::run_inner;
+use crate::commands::{BuildArgs, Logging, RunArgs};
 
 // Colors for output
 const GREEN: &str = "\x1b[0;32m";
@@ -25,6 +26,7 @@ pub struct TestArgs {
 #[derive(Debug)]
 struct TestResult {
     name: String,
+    message: String,
     success: bool,
     error_message: Option<String>,
 }
@@ -54,7 +56,7 @@ pub fn test(args: TestArgs) -> Result<()> {
             let result = run_single_test(&file_path, &test_func, &test_name, &args)?;
 
             if result.success {
-                println!("{}ok{}", GREEN, NC);
+                println!("{}ok{} ({})", GREEN, NC, result.message);
                 passed_tests += 1;
             } else {
                 println!("{}err{}", RED, NC);
@@ -210,14 +212,16 @@ fn run_single_test(
     run_args.build.entrypoint = temp_file;
 
     // Call run function directly
-    match run(run_args) {
-        Ok(_) => Ok(TestResult {
+    match run_inner(run_args) {
+        Ok(res) => Ok(TestResult {
             name: test_name.to_string(),
+            message: res.to_lowercase(),
             success: true,
             error_message: None,
         }),
         Err(e) => Ok(TestResult {
             name: test_name.to_string(),
+            message: e.to_string(),
             success: false,
             // Use pretty Display with full context chain
             error_message: Some(format!("{:#}", e)),

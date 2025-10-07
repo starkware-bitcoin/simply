@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use elements::hashes::sha256;
-use elements::hashes::Hash as _;
 use elements::secp256k1_zkp::{
     rand::rngs::OsRng, Keypair, Message, Secp256k1, SecretKey, XOnlyPublicKey,
 };
@@ -23,8 +21,7 @@ pub fn sign(args: SignArgs) -> Result<()> {
     let msg_bytes = Vec::from_hex(&args.message).with_context(|| "Failed to decode message hex")?;
     anyhow::ensure!(!msg_bytes.is_empty(), "Message must not be empty");
 
-    let digest = sha256::Hash::hash(&msg_bytes);
-    let msg = Message::from_digest_slice(digest.as_ref())
+    let msg = Message::from_digest_slice(msg_bytes.as_ref())
         .with_context(|| "Failed to construct message for signing")?;
 
     // Obtain or generate secret key

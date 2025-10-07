@@ -52,6 +52,12 @@ pub enum Logging {
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
+    let res = run_inner(args)?;
+    println!("{}", res);
+    Ok(())
+}
+
+pub(crate) fn run_inner(args: RunArgs) -> Result<String> {
     let witness = if let Some(witness_path) = args.build.witness {
         load_witness(Some(&witness_path))?
     } else {
@@ -78,7 +84,7 @@ pub fn run(args: RunArgs) -> Result<()> {
         false,
     );
 
-    if let Some(logging) = args.logging {
+    let res = if let Some(logging) = args.logging {
         let mut machine = BitMachine::for_program(node)?;
         let mut tracker = tracker::Tracker {
             debug_symbols: satisfied.debug_symbols(),
@@ -86,10 +92,10 @@ pub fn run(args: RunArgs) -> Result<()> {
             jet_traces: logging == Logging::Trace,
         };
         let res = machine.exec_with_tracker(node, &env, &mut tracker)?;
-        println!("Result: {}", res);
+        format!("Result: {}", res)
     } else {
         let (program_bytes, witness_bytes) = node.encode_to_vec();
-        run_program(
+        let output = run_program(
             &program_bytes,
             &witness_bytes,
             TestUpTo::Everything,
@@ -97,7 +103,12 @@ pub fn run(args: RunArgs) -> Result<()> {
             Some(env.c_tx_env()),
         )
         .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
-    }
+        output
+            .eval_result
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("Program exited with error: {}", e))?;
+        format!("Cost bound: {}", output.cost_bound)
+    };
 
-    Ok(())
+    Ok(res)
 }
