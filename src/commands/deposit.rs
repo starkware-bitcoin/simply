@@ -20,6 +20,9 @@ pub fn deposit(args: DepositArgs) -> Result<()> {
         args.build.mcpp_inc_path,
     )?;
     let address = create_p2tr_address(program, unspendable_key())?;
-    println!("P2TR address: {}", address);
+    println!(
+        "P2TR address: {}\n\nGo to https://liquidtestnet.com/faucet to get some testnet coins.",
+        address
+    );
     Ok(())
 }
